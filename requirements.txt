@@ -2,3 +2,6 @@ tensorflow>=2.15
 scikit-learn>=1.3
 pandas>=2.0
 numpy>=1.24
+
+# Chỉ cần cho web demo (app.py) — không bắt buộc khi train
+gradio>=4.0
