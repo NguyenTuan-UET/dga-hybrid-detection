@@ -4,7 +4,8 @@ import importlib.util
 import numpy as np
 import pandas as pd
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-from sklearn.metrics import f1_score, roc_auc_score, accuracy_score
+from sklearn.metrics import (f1_score, roc_auc_score, accuracy_score,
+                             precision_score, recall_score)
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE, 'src'))
@@ -39,12 +40,15 @@ def evaluate(model, X_holdout, y_holdout):
     y_prob = model.predict(X_holdout, verbose=0).flatten()
     y_pred = (y_prob >= THRESHOLD).astype(int)
 
-    acc = accuracy_score(y_holdout, y_pred)
-    f1  = f1_score(y_holdout, y_pred)
-    auc = roc_auc_score(y_holdout, y_prob)
-    fpr = np.sum((y_pred == 1) & (y_holdout == 0)) / np.sum(y_holdout == 0)
+    acc       = accuracy_score(y_holdout, y_pred)
+    precision = precision_score(y_holdout, y_pred, zero_division=0)
+    recall    = recall_score(y_holdout, y_pred)   # TPR = Recall (cùng công thức)
+    f1        = f1_score(y_holdout, y_pred)
+    auc       = roc_auc_score(y_holdout, y_prob)
+    fpr       = np.sum((y_pred == 1) & (y_holdout == 0)) / np.sum(y_holdout == 0)
 
-    return {'accuracy': acc, 'f1': f1, 'auc': auc, 'fpr': fpr}
+    return {'accuracy': acc, 'precision': precision, 'recall': recall,
+            'f1': f1, 'auc': auc, 'fpr': fpr}
 
 
 def train_bilbo(X_train, y_train, X_test, y_test, X_holdout, y_holdout):
@@ -78,6 +82,8 @@ def train_bilbo(X_train, y_train, X_test, y_test, X_holdout, y_holdout):
 
         print(f"\n  Run {run} holdout → "
               f"Acc: {results['accuracy']:.4f} | "
+              f"Prec: {results['precision']:.4f} | "
+              f"Rec: {results['recall']:.4f} | "
               f"F1: {results['f1']:.4f} | "
               f"AUC: {results['auc']:.4f} | "
               f"FPR: {results['fpr']:.4f}")
@@ -87,10 +93,12 @@ def train_bilbo(X_train, y_train, X_test, y_test, X_holdout, y_holdout):
     print(f"\n{'='*50}")
     print(f"  BILBO — Trung bình {N_RUNS} lần chạy")
     print(f"{'='*50}")
-    print(f"  Accuracy : {avg['accuracy']:.4f}")
-    print(f"  F1 Score : {avg['f1']:.4f}")
-    print(f"  AUC      : {avg['auc']:.4f}")
-    print(f"  FPR      : {avg['fpr']:.4f}")
+    print(f"  Accuracy  : {avg['accuracy']:.4f}")
+    print(f"  Precision : {avg['precision']:.4f}")
+    print(f"  Recall    : {avg['recall']:.4f}  (= TPR)")
+    print(f"  F1 Score  : {avg['f1']:.4f}")
+    print(f"  AUC       : {avg['auc']:.4f}")
+    print(f"  FPR       : {avg['fpr']:.4f}")
     print(f"{'='*50}")
 
     return avg
@@ -131,7 +139,8 @@ def run_generalizability_trial(train_families, test_family, dga_path, trial_num)
 
         results = evaluate(model, X_test, y_test)
         all_results.append(results)
-        print(f"  Run {run} → Acc:{results['accuracy']:.4f} F1:{results['f1']:.4f} "
+        print(f"  Run {run} → Acc:{results['accuracy']:.4f} Prec:{results['precision']:.4f} "
+              f"Rec:{results['recall']:.4f} F1:{results['f1']:.4f} "
               f"AUC:{results['auc']:.4f} FPR:{results['fpr']:.4f}")
 
     avg = {k: np.mean([r[k] for r in all_results]) for k in all_results[0]}
@@ -155,16 +164,15 @@ def generalizability_test(dga_path):
     print("\n" + "="*60)
     print("  EXPERIMENT 2 — SUMMARY")
     print("="*60)
-    header = f"  {'Unseen Family':<14} {'Accuracy':>9} {'F1':>9} {'AUC':>9} {'FPR':>9}"
+    cols = ['accuracy', 'precision', 'recall', 'f1', 'auc', 'fpr']
+    header = f"  {'Unseen Family':<14}" + "".join(f"{c.capitalize():>10}" for c in cols)
     print(header)
-    print("  " + "-"*52)
+    print("  " + "-"*(14 + 10*len(cols)))
     for r in trial_results:
-        print(f"  {r['test_family']:<14} {r['accuracy']:>9.4f} {r['f1']:>9.4f} "
-              f"{r['auc']:>9.4f} {r['fpr']:>9.4f}")
-    print("  " + "-"*52)
-    means = {k: np.mean([r[k] for r in trial_results]) for k in ['accuracy', 'f1', 'auc', 'fpr']}
-    print(f"  {'MEAN':<14} {means['accuracy']:>9.4f} {means['f1']:>9.4f} "
-          f"{means['auc']:>9.4f} {means['fpr']:>9.4f}")
+        print(f"  {r['test_family']:<14}" + "".join(f"{r[c]:>10.4f}" for c in cols))
+    print("  " + "-"*(14 + 10*len(cols)))
+    means = {c: np.mean([r[c] for r in trial_results]) for c in cols}
+    print(f"  {'MEAN':<14}" + "".join(f"{means[c]:>10.4f}" for c in cols))
     print("="*60)
 
     return trial_results
