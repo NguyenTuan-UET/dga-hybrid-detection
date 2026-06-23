@@ -67,6 +67,21 @@ Hoặc nhấn **Output** trong notebook để tải file.
 
 ---
 
+## Dùng model để dự đoán domain mới
+
+Sau khi train (model nằm ở `saved_models/`), chạy:
+
+```python
+# Dự đoán vài domain
+!python src/predict.py google.com mortiscontrastatim.com
+
+# Đọc từ file (mỗi dòng 1 domain)
+!python src/predict.py --file domains.txt
+```
+
+Tải model về máy thì chạy `predict.py` y hệt ở local. Script tự
+ensemble 3 model (trung bình `bilbo_run*.keras`) cho kết quả ổn định.
+
 ## Lưu ý
 
 - **Giới hạn free:** ~30h GPU/tuần, mỗi phiên tối đa 12h. Đủ thừa cho
